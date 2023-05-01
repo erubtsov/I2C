@@ -1,0 +1,78 @@
+from smbus import SMBus
+import struct
+import board
+from adafruit_seesaw import seesaw, rotaryio, digitalio
+#import adafruit_am2320
+import time
+import adafruit_sht31d
+#import busio
+
+bus = SMBus(1)
+i2c = board.I2C()
+seesaw = seesaw.Seesaw(i2c, addr=0x36)
+#am = adafruit_am2320.AM2320(i2c)
+sensor = adafruit_sht31d.SHT31D(i2c)
+
+#seesaw.pin_mode(24, seesaw.INPUT_PULLUP)
+
+encoder = rotaryio.IncrementalEncoder(seesaw)
+last_position = 0
+class feedRate():
+    def __init__(self, _sensorName, lastPos):
+        self.sensorName = _sensorName
+        self.lastPos = lastPos
+    def __str__(self):
+        return f'{self.sensorName}'
+    def feedRead(self):
+        position = -encoder.position
+        if position != self.lastPos:
+            self.lastPos = position
+        return position
+     
+class DHTsensorTemp():
+    def __init__(self, _sensorName):
+        self.sensorName = _sensorName
+    def __str__(self):
+        return f'{self.sensorName}'
+    def DHTRead(self):
+        return sensor.temperature
+        #('Temperature: {0}C'.format(sensor.temperature));
+class DHTsensorHumidity():
+    def __init__(self, _sensorName):
+        self.sensorName = _sensorName
+    def __str__(self):
+        return f'{self.sensorName}'
+    def DHTRead(self):
+        return sensor.relative_humidity
+    #('Temperature: {0}C'.format(sensor.temperature));
+         
+class I2CFloatPublisher():
+    def __init__(self, _sensorName, _address):
+        self.sensorName = _sensorName
+        self.address = _address
+    def __str__(self):
+        #return object name
+        return f'{self.sensorName}'	
+    def i2cRead(self):
+    #with SMBus(1) as bus:
+     # Read a block of 16 bytes from address 80, offset 0
+        #value = my_bus.read_byte(self.address) ### This works.
+        while True:
+            try:
+                value = bytes(bus.read_i2c_block_data(self.address, 99, 4))
+                return struct.unpack('f', value)[0]
+            except:
+                pass
+        
+        #time.sleep(0.005)
+            # Returned value is a list of 4 bytes
+
+feedRateSensor = feedRate("Feed Rate", 0)
+#sensor1 = I2CFloatPublisher("Current1", 0x15, 99)
+temp = DHTsensorTemp("Temp: ")
+humidity = DHTsensorHumidity("Humidity: ")
+sensor2 = I2CFloatPublisher("Current2", 0x15)
+
+def stream_loop():
+        while True:
+            print(f'{feedRateSensor}:{feedRateSensor.feedRead()} ; {sensor2}:{sensor2.i2cRead()} ;  {temp}:{temp.DHTRead()} ; {humidity}:{humidity.DHTRead()}')
